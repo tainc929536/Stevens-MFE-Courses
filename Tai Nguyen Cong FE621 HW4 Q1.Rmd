@@ -1,0 +1,146 @@
+---
+output: pdf_document
+
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE)
+```
+
+
+
+# FE621.  Assignment #1.
+
+
+## `r format(Sys.time(), "%Y-%m-%d")`
+
+Name: Tai Nguyen Cong
+
+CWID: 10442353
+
+
+# Question 1
+## Question 1.2
+## \textcolor{red}{Solution:} 
+
+```{r}
+#5
+f5.er <- function(x) {
+  fse.f5 <- c()
+  for(i in 1:5) {
+    fse.f5[i] = 2/i*(sin(i*x))*(-1)^(i+1)
+  }
+  y = (x-sum(fse.f5))^2
+  return(y)
+}
+
+#10
+f10.er <- function(x) {
+  fse.f10 <- c()
+  for(i in 1:10) {
+    fse.f10[i] = 2/i*(sin(i*x))*(-1)^(i+1)
+  }
+  y = (x-sum(fse.f10))^2
+  return(y)
+}
+
+#20
+f20.er <- function(x) {
+  fse.f20 <- c()
+  for(i in 1:20) {
+    fse.f20[i] = 2/i*(sin(i*x))*(-1)^(i+1)
+  }
+  y = (x-sum(fse.f20))^2
+  return(y)
+}
+
+#100
+f100.er <- function(x) {
+  fse.f100 <- c()
+  for(i in 1:100) {
+    fse.f100[i] = 2/i*(sin(i*x))*(-1)^(i+1)
+  }
+  y = (x-sum(fse.f100))^2
+  return(y)
+}
+
+# Taking Integral
+v5 <- integrate(Vectorize(f5.er), lower = -pi, upper = pi)
+v10 <- integrate(Vectorize(f10.er), lower = -pi, upper = pi)
+v20 <- integrate(Vectorize(f20.er), lower = -pi, upper = pi)
+v100 <- integrate(Vectorize(f100.er), lower = -pi, upper = pi)
+
+er.res <- c(v5$value, v10$value, v20$value, v100$value)
+
+er.tab <- matrix(c(v5$value, v10$value, v20$value, v100$value), nrow = 1, byrow = T)
+colnames(er.tab) <- c("5", "10", "20", "100")
+rownames(er.tab) <- c("Error Values")
+er.tab
+```
+As we increase the number of terms on Fourier Series, The Error tends to decrease.
+
+
+## Question 1.3
+## \textcolor{red}{Solution:} 
+
+```{r}
+f5.est <- function(x) {
+  fse.f5 <- c()
+  for(i in 1:5) {
+    fse.f5[i] = 2/i*(sin(i*x))*(-1)^(i+1)
+  }
+  y=sum(fse.f5)
+  return(y)
+}
+
+f10.est <- function(x) {
+  fse.f10 <- c()
+  for(i in 1:10) {
+    fse.f10[i] = 2/i*(sin(i*x))*(-1)^(i+1)
+  }
+  y=sum(fse.f10)
+  return(y)
+}
+
+f20.est <- function(x) {
+  fse.f20 <- c()
+  for(i in 1:20) {
+    fse.f20[i] = 2/i*(sin(i*x))*(-1)^(i+1)
+  }
+  y=sum(fse.f20)
+  return(y)
+}
+
+f100.est <- function(x) {
+  fse.f100 <- c()
+  for(i in 1:100) {
+    fse.f100[i] = 2/i*(sin(i*x))*(-1)^(i+1)
+  }
+  y=sum(fse.f100)
+  return(y)
+}
+
+x <- seq(-pi, pi, 0.001)
+f5.est.l <- c()
+f10.est.l <- c()
+f20.est.l <- c()
+f100.est.l <- c()
+for(i in 1:length(x)) {
+  f5.est.l[i] = f5.est(x[i])
+  f10.est.l[i] = f10.est(x[i])
+  f20.est.l[i] = f20.est(x[i])
+  f100.est.l[i] = f100.est(x[i])
+}
+
+plot(x, type = "l", main = "Fourier Series Approximation with Different K Values", 
+     xlab = "x", ylab = "y", ylim = c(-4,4), xaxt = "n")
+axis(1, at= 1:length(x), labels = x)
+lines(f5.est.l, type = "l", col = "brown")
+lines(f10.est.l, type = "l", col = "dark green")
+lines(f20.est.l, type = "l", col = "red")
+lines(f100.est.l, type = "l", col = "blue")
+legend(x="topleft", legend=c("x", "K=5", "K=10", "K=20", "K=100"),
+       col=c("black","brown", "dark green", "red", "blue"),
+       lty=rep(1,5), cex=1)
+```
+

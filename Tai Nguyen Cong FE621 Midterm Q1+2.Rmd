@@ -1,0 +1,514 @@
+---
+output: pdf_document
+
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE)
+```
+
+
+
+# FE621.  Midterm.
+
+
+## `r format(Sys.time(), "%Y-%m-%d")`
+
+Name: Tai Nguyen Cong
+
+# Question 1
+
+## Question 1.3
+## \textcolor{red}{Solution:}
+I use delta of time equal 1/100, and take the square root of it to obtain the standard deviation of Brownian Motion as in theory, computing the value of process for 1 simulation, then taking exponential of it.
+```{r}
+delt = 1/100
+sd = sqrt(delt)
+
+u <- c()
+u.t <- c()
+for(i in 2:101) {
+  set.seed(i*5)
+  u[1] = 0
+  u.t[1] = 0
+  u[i] = u[i-1] + rnorm(1, 0, sd)
+  u.t[i] = u[i] - 0.5*(i-1)*delt
+}
+plot(exp(u), type = "l", col = "blue", xlab = "Periods", ylab = "Values", 
+     main = "Simulation of 1 path")
+lines(exp(u.t), type = "l", col = "red")
+legend(x = "left", legend = c("Exp(W(t))", "Exp(W(t) - 0.5t)"), 
+       col = c("blue", "red"), lty = rep(1, 2))
+```
+We can see that since there is a difference of 0.5t in the exponential, so $e^{W(t)}$ is always higher than $e^{W(t)-0.5t}$
+
+## Question 1.4
+## \textcolor{red}{Solution:}
+```{r}
+# Initalize 1000 simulations of W(t) and W(t) - 0.5t processes
+mc.w.path <- vector("list", 1000)
+mc.wt.path <- vector("list", 1000)
+for(i in 1:1000) {
+  for(j in 2:101) {
+    set.seed(i*j*5)
+    mc.w.path[[i]][1] = 0
+    mc.wt.path[[i]][1] = 0
+    mc.w.path[[i]][j] = mc.w.path[[i]][j-1] + rnorm(1, 0, sd)
+    mc.wt.path[[i]][j] = mc.w.path[[i]][j] - 0.5*(j-1)*delt
+  }
+}
+
+# Obtain 1000 simulation of exponential of 2 processes
+exp.mc.w.path <- vector("list", 1000)
+exp.mc.wt.path <- vector("list", 1000)
+for(i in 1:1000) {
+  exp.mc.w.path[[i]] = exp(mc.w.path[[i]])
+  exp.mc.wt.path[[i]] = exp(mc.wt.path[[i]])
+}
+
+# Calculating Moving AVerage of each simulation
+ma.exp.mc.w.path <- vector("list", 1000)
+ma.exp.mc.wt.path <- vector("list", 1000)
+sum.exp.mc.w.path <- vector("list", 1000)
+sum.exp.mc.wt.path <- vector("list", 1000)
+for(i in 1:1000) {
+  for(j in 2:101) {
+    sum.exp.mc.w.path[[i]][1] = exp.mc.w.path[[i]][1]
+    sum.exp.mc.w.path[[i]][j] = sum.exp.mc.w.path[[i]][j-1] + exp.mc.w.path[[i]][j]
+    sum.exp.mc.wt.path[[i]][1] = exp.mc.wt.path[[i]][1]
+    sum.exp.mc.wt.path[[i]][j] = sum.exp.mc.wt.path[[i]][j-1] + exp.mc.wt.path[[i]][j]
+    
+    ma.exp.mc.w.path[[i]][1] = exp.mc.w.path[[i]][1]
+    ma.exp.mc.w.path[[i]][j] = sum.exp.mc.w.path[[i]][j]/j
+    ma.exp.mc.wt.path[[i]][1] = exp.mc.wt.path[[i]][1]
+    ma.exp.mc.wt.path[[i]][j] = sum.exp.mc.wt.path[[i]][j]/j
+  }
+}
+
+periods = seq(0,100,1)
+ma.all.path.w <- vector("list", 100)
+ma.all.path.wt <- vector("list", 100)
+for(i in 1:100) {
+  for(j in 1:1000) {
+    ma.all.path.w[[i]][j] = ma.exp.mc.w.path[[j]][i]
+    ma.all.path.wt[[i]][j] = ma.exp.mc.wt.path[[j]][i]
+  }
+}
+
+# Computing the average of moving average of 1000 simulations of 2 processes
+ma.fin.path.w <- c()
+ma.fin.path.wt <- c()
+for(i in 1:100) {
+  ma.fin.path.w[i] = sum(ma.all.path.w[[i]])/1000
+  ma.fin.path.wt[i] = sum(ma.all.path.wt[[i]])/1000
+}
+
+# Plot the graph
+plot(ma.fin.path.w, type = "l", col = "blue", xlab = "Periods", ylab = "Values", 
+    ylim = c(0.9, 1.5) ,main = "Moving Average of Monte Carlo Simulations")
+lines(ma.fin.path.wt, type = "l", col = "red")
+legend(x = "topleft", legend = c("Exp(W(t))", "Exp(W(t) - 0.5t)"), 
+       col = c("blue", "red"), lty = rep(1, 2))
+```
+From the simulations, as we increase in time, both $e^{W(t)}$ and $e^{W(t)-0.5t}$ tend to increase, however, due to the term 0.5t in the exponential, we can see that $e^{W(t)}$ increases faster, and the gap of moving average between 2 process is larger across time.
+
+
+# Question 2
+
+## Question 2.1
+## \textcolor{red}{Solution:}
+Function to download data
+```{r}
+library(quantmod)
+
+get.data.FDM <- function(ticker, start.date, end.date, 
+                        exp.date1, exp.date2, exp.date3) {
+  secp <- getSymbols(Symbols = as.character(ticker), from = start.date, 
+                     to = end.date, auto.assign = F, src = 'yahoo')
+  optd1 <- getOptionChain(as.character(ticker), auto.assign = F, 
+                          exp.date1, src = 'yahoo')
+  optd2 <- getOptionChain(as.character(ticker), auto.assign = F,
+                          exp.date2, src = 'yahoo')
+  optd3 <- getOptionChain(as.character(ticker), auto.assign = F,
+                          exp.date3, src = 'yahoo')
+  
+  c1 <- data.frame(optd1$calls)
+  colnames(c1) <- c(paste(c(ticker), "Call.1m.Strike", sep = "."), 
+                    paste(c(ticker), "Call.1m.Last", sep = "."), 
+                    paste(c(ticker), "Call.1m.Chg", sep = "."), 
+                    paste(c(ticker), "Call.1m.Bid", sep = "."),
+                    paste(c(ticker), "Call.1m.Ask", sep = "."), 
+                    paste(c(ticker), "Call.1m.Vol", sep = "."), 
+                    paste(c(ticker), "Call.1m.OI", sep = "."))
+  p1 <- data.frame(optd1$puts)
+  colnames(p1) <- c(paste(c(ticker), "Put.1m.Strike", sep = "."), 
+                    paste(c(ticker), "Put.1m.Last", sep = "."), 
+                    paste(c(ticker), "Put.1m.Chg", sep = "."), 
+                    paste(c(ticker), "Put.1m.Bid", sep = "."),
+                    paste(c(ticker), "Put.1m.Ask", sep = "."), 
+                    paste(c(ticker), "Put.1m.Vol", sep = "."), 
+                    paste(c(ticker), "Put.1m.OI", sep = "."))
+  
+  c2 <- data.frame(optd2$calls)
+  colnames(c2) <- c(paste(c(ticker), "Call.2m.Strike", sep = "."), 
+                    paste(c(ticker), "Call.2m.Last", sep = "."), 
+                    paste(c(ticker), "Call.2m.Chg", sep = "."), 
+                    paste(c(ticker), "Call.2m.Bid", sep = "."),
+                    paste(c(ticker), "Call.2m.Ask", sep = "."), 
+                    paste(c(ticker), "Call.2m.Vol", sep = "."), 
+                    paste(c(ticker), "Call.2m.OI", sep = "."))
+  p2 <- data.frame(optd2$puts)
+  colnames(p2) <- c(paste(c(ticker), "Put.2m.Strike", sep = "."), 
+                    paste(c(ticker), "Put.2m.Last", sep = "."), 
+                    paste(c(ticker), "Put.2m.Chg", sep = "."), 
+                    paste(c(ticker), "Put.2m.Bid", sep = "."),
+                    paste(c(ticker), "Put.2m.Ask", sep = "."), 
+                    paste(c(ticker), "Put.2m.Vol", sep = "."), 
+                    paste(c(ticker), "Put.2m.OI", sep = "."))
+  
+  c3 <- data.frame(optd3$calls)
+  colnames(c3) <- c(paste(c(ticker), "Call.3m.Strike", sep = "."), 
+                    paste(c(ticker), "Call.3m.Last", sep = "."), 
+                    paste(c(ticker), "Call.3m.Chg", sep = "."), 
+                    paste(c(ticker), "Call.3m.Bid", sep = "."),
+                    paste(c(ticker), "Call.3m.Ask", sep = "."), 
+                    paste(c(ticker), "Call.3m.Vol", sep = "."), 
+                    paste(c(ticker), "Call.3m.OI", sep = "."))
+  p3 <- data.frame(optd3$puts)
+  colnames(p3) <- c(paste(c(ticker), "Put.3m.Strike", sep = "."), 
+                    paste(c(ticker), "Put.3m.Last", sep = "."), 
+                    paste(c(ticker), "Put.3m.Chg", sep = "."), 
+                    paste(c(ticker), "Put.3m.Bid", sep = "."),
+                    paste(c(ticker), "Put.3m.Ask", sep = "."), 
+                    paste(c(ticker), "Put.3m.Vol", sep = "."), 
+                    paste(c(ticker), "Put.3m.OI", sep = "."))
+  secp <- data.frame(secp)
+  all.dat <- c(secp, c1, p1, c2, p2, c3, p3)
+  return(all.dat)
+}
+```
+
+Obtain data using function above. I use stock date 22 October 2019, and that's day federal fund rate. Also I find the options with smallest gaps from the current stock price and choose 20 strike prices around it to plot the graph.
+```{r}
+AMZN.MT <- get.data.FDM("AMZN", "2019-10-22", "2019-10-23", "2019-11-22", "2019-12-20", "2020-01-17")
+
+amzn.mt.sp = AMZN.MT$AMZN.Adjusted
+r.mt <- 0.0185 # 22 Oct
+
+which.min(abs(AMZN.MT$AMZN.Adjusted - AMZN.MT$AMZN.Call.1m.Strike))
+which.min(abs(AMZN.MT$AMZN.Adjusted - AMZN.MT$AMZN.Call.2m.Strike))
+which.min(abs(AMZN.MT$AMZN.Adjusted - AMZN.MT$AMZN.Call.3m.Strike))
+
+which.min(abs(AMZN.MT$AMZN.Adjusted - AMZN.MT$AMZN.Put.1m.Strike))
+which.min(abs(AMZN.MT$AMZN.Adjusted - AMZN.MT$AMZN.Put.2m.Strike))
+which.min(abs(AMZN.MT$AMZN.Adjusted - AMZN.MT$AMZN.Put.3m.Strike))
+
+amzn.mt.call.1m.strike = AMZN.MT$AMZN.Call.1m.Strike[48:67]
+amzn.mt.call.2m.strike = AMZN.MT$AMZN.Call.2m.Strike[42:61]
+amzn.mt.call.3m.strike = AMZN.MT$AMZN.Call.3m.Strike[103:122]
+
+amzn.mt.put.1m.strike = AMZN.MT$AMZN.Put.1m.Strike[111:130]
+amzn.mt.put.2m.strike = AMZN.MT$AMZN.Put.2m.Strike[62:81]
+amzn.mt.put.3m.strike = AMZN.MT$AMZN.Put.3m.Strike[103:122]
+
+amzn.mt.call.option.price.1m <- c()
+amzn.mt.call.option.price.2m <- c()
+amzn.mt.call.option.price.3m <- c()
+amzn.mt.put.option.price.1m <- c()
+amzn.mt.put.option.price.2m <- c()
+amzn.mt.put.option.price.3m <- c()
+for(i in 1:20) {
+  amzn.mt.call.option.price.1m[i] = (AMZN.MT$AMZN.Call.1m.Ask[i+47] + 
+                                       AMZN.MT$AMZN.Call.1m.Bid[i+47])/2
+  amzn.mt.call.option.price.2m[i] = (AMZN.MT$AMZN.Call.2m.Ask[i+41] +
+                                       AMZN.MT$AMZN.Call.2m.Bid[i+41])/2
+  amzn.mt.call.option.price.3m[i] = (AMZN.MT$AMZN.Call.3m.Ask[i+102] + 
+                                       AMZN.MT$AMZN.Call.3m.Bid[i+102])/2
+  amzn.mt.put.option.price.1m[i] = (AMZN.MT$AMZN.Put.1m.Ask[i+110] + 
+                                      AMZN.MT$AMZN.Put.1m.Bid[i+110])/2
+  amzn.mt.put.option.price.2m[i] = (AMZN.MT$AMZN.Put.2m.Ask[i+61] + 
+                                      AMZN.MT$AMZN.Put.2m.Bid[i+61])/2
+  amzn.mt.put.option.price.3m[i] = (AMZN.MT$AMZN.Put.3m.Ask[i+102] + 
+                                      AMZN.MT$AMZN.Put.3m.Bid[i+102])/2
+}
+```
+
+Function calculating implied volatility for call and put options
+```{r}
+# Implied volatility
+# Using Newton Method
+# Call
+CallBSIMPVol <- function(spot.price, time.to.maturity, risk.free, strike.price, 
+                         option.price, initial.guess) {
+  
+  fx <-  function(sig){
+    d1 <- (log(spot.price/strike.price) + (risk.free + sig^2 * 0.5) * time.to.maturity) / 
+      (sig * sqrt(time.to.maturity))
+    d2 <- d1 - sig * sqrt(time.to.maturity)
+    value <- spot.price * pnorm(d1) - strike.price * exp( -risk.free * time.to.maturity) * 
+      pnorm(d2) - option.price
+    return(value)
+  }
+  
+  dfx <- function(sig){
+    d1 <- (log(spot.price/strike.price) + (risk.free + sig^2 * 0.5) * time.to.maturity) /
+      (sig*sqrt(time.to.maturity))
+    d2 <- d1 - sig * sqrt(time.to.maturity)
+    value <- strike.price * exp( -risk.free * time.to.maturity) * dnorm(d2) * 
+      sqrt(time.to.maturity)
+    return(value)
+  }
+  
+  q1 <- function(x0){
+    epsilon <- 0.5
+    while(T){
+      tmp <-  x0
+      deltaX  <-  fx(x0)/dfx(x0)
+      x0  <-  x0 - deltaX
+      if (abs(x0-tmp) < epsilon){
+        
+        break  
+      }else {
+        print(x0)
+      }
+    }
+    return(x0)
+  }
+  
+  IMPvol <- q1(initial.guess)
+  return(IMPvol)
+}
+
+# Put
+PutBSIMPVol <- function(spot.price, time.to.maturity, risk.free, strike.price, 
+                        option.price, initial.guess) {
+  
+  fx <-  function(sig){
+    d1 <- (log(spot.price/strike.price) + (risk.free + sig^2 * 0.5) * time.to.maturity) / 
+      (sig * sqrt(time.to.maturity))
+    d2 <- d1 - sig * sqrt(time.to.maturity)
+    value <- pnorm(-d2) * strike.price * exp(-risk.free * time.to.maturity) - pnorm(-d1) * 
+      spot.price - option.price
+    return(value)
+  }
+  
+  dfx <- function(sig){
+    d1 <- (log(spot.price/strike.price) + (risk.free + sig^2 * 0.5) * time.to.maturity) / 
+      (sig*sqrt(time.to.maturity))
+    d2 <- d1 - sig * sqrt(time.to.maturity)
+    value <- strike.price * exp( -risk.free * time.to.maturity) * dnorm(-d2) * 
+      sqrt(time.to.maturity)
+    return(value)
+  }
+  
+  q1 <- function(x0){
+    epsilon <- 0.5
+    while(T){
+      tmp <-  x0
+      deltaX  <-  fx(x0)/dfx(x0)
+      x0  <-  x0 - deltaX
+      if (abs(x0-tmp) < epsilon){
+        
+        break  
+      }else {
+        
+      }
+    }
+    return(x0)
+  }
+  
+  IMPvol <- q1(initial.guess)
+  return(IMPvol)
+}
+```
+
+Using function and data obtained, compute the implied volatility.
+```{r}
+t1 = 31/365
+t2 = 59/365
+t3 = 87/365
+
+amzn.mt.vol.c1 <- c()
+amzn.mt.vol.c2 <- c()
+amzn.mt.vol.c3 <- c()
+amzn.mt.vol.p1 <- c()
+amzn.mt.vol.p2 <- c()
+amzn.mt.vol.p3 <- c()
+for(i in 1:20) {
+  amzn.mt.vol.c1[i] = CallBSIMPVol(amzn.mt.sp, t1, r.mt, amzn.mt.call.1m.strike[i], 
+                                    amzn.mt.call.option.price.1m[i], 0.5)
+  
+  amzn.mt.vol.c2[i] = CallBSIMPVol(amzn.mt.sp, t2, r.mt, amzn.mt.call.2m.strike[i], 
+                                    amzn.mt.call.option.price.2m[i], 0.5)
+  
+  amzn.mt.vol.c3[i] = CallBSIMPVol(amzn.mt.sp, t3, r.mt, amzn.mt.call.3m.strike[i], 
+                                    amzn.mt.call.option.price.3m[i], 0.5)
+  
+  amzn.mt.vol.p1[i] = PutBSIMPVol(amzn.mt.sp, t1, r.mt, amzn.mt.put.1m.strike[i], 
+                                   amzn.mt.put.option.price.1m[i], 0.5)
+  
+  amzn.mt.vol.p2[i] = PutBSIMPVol(amzn.mt.sp, t2, r.mt, amzn.mt.put.2m.strike[i], 
+                                   amzn.mt.put.option.price.2m[i], 0.5)
+  
+  amzn.mt.vol.p3[i] = PutBSIMPVol(amzn.mt.sp, t3, r.mt, amzn.mt.put.3m.strike[i], 
+                                     amzn.mt.put.option.price.3m[i], 0.5)
+}
+```
+
+Plot the graph
+```{r}
+plot(seq(1, 20, 1), amzn.mt.vol.c1, type = "l", ylim = c(0.2, 0.4),
+     xlab = "Strike", ylab = "Implied Volatility",
+     main = "Implied Volatility - Strike of Call Options")
+{ lines(seq(1, 20, 1), amzn.mt.vol.c2, col = "red")
+  lines(seq(1, 20, 1), amzn.mt.vol.c3, col = "blue") }
+legend(x = "topright", legend = c("1 Month", "2 Months", "3 months"), 
+       col = c("black", "red", "blue"), lty = rep(1, 3))
+
+plot(seq(1, 20, 1), amzn.mt.vol.p1, type = "l", ylim = c(0.04, 0.23),
+     xlab = "Strike", ylab = "Implied Volatility",
+     main = "Implied Volatility - Strike of Put Options")
+{ lines(seq(1, 20, 1), amzn.mt.vol.p2, col = "red")
+  lines(seq(1, 20, 1), amzn.mt.vol.p3, col = "blue") }
+legend(x = "topright", legend = c("1 Month", "2 Months", "3 months"), 
+       col = c("black", "red", "blue"), lty = rep(1, 3))
+```
+We can see that for both 2 plots, the implied volatility seems to be decrease as we increase the value of strike prices. Also, as the maturity increase, the volatility of corresponding strike prices are also larger. And put options seems to have smaller implied volatility, compared to call options.
+
+
+## Question 2.2
+## \textcolor{red}{Solution:}
+Importing data
+```{r}
+s0 = 100
+k = 100
+t=1
+sig=0.2
+r=0.06
+div=0.03
+```
+
+For this problem, I use 200 steps for calculation.
+```{r}
+mt.v=r-div-0.5*sig^2
+
+# 200 steps
+delt=t/200
+# Call 
+# Computing probability and delx movement
+deluc.200 = sqrt(delt*sig^2 + (mt.v*delt)^2)
+deldc.200 = -deluc.200 
+pu.c.200 = 0.5 + 0.5*mt.v*delt/deluc.200 
+pd.c.200 = 1 - pu.c.200 
+dis.c.200 = exp(-r*delt)
+
+# Put
+# Computing probability and delx movement
+delup.200 = sqrt(delt*sig^2 + (mt.v*delt)^2)
+deldp.200 = -delup.200 
+pu.p.200 = 0.5 + 0.5*mt.v*delt/delup.200 
+pd.p.200 = 1 - pu.p.200 
+dis.p.200 = exp(-r*delt)
+
+# Value of assets and options at the final time for each strike price
+s.final.c.200 <- c()
+s.final.p.200 <- c()
+v.c.final.200 <- c()
+v.p.final.200 <- c()
+for(i in 1:201) {
+  s.final.c.200[i] = s0*exp((i-1)*deluc.200 + (201-i)*deldc.200)
+  s.final.p.200[i] = s0*exp((i-1)*delup.200 + (201-i)*deldp.200)
+  v.c.final.200[i] = max(c(0, s.final.c.200[i] - k))
+  v.p.final.200[i] = max(c(0, k - s.final.p.200[i]))
+}
+```
+
+```{r}
+# US Put
+pc <- vector("list", 201)
+pc[[1]] <- v.p.final.200
+sp <- vector("list", 201)
+sp[[1]] <- s.final.p.200
+for(i in 2:201) {
+  for(j in 1:201) {
+    sp[[i]][j] = sp[[i-1]][j]*exp(deldp.200)
+  }
+  sp[[i]] = sp[[i]][-1]
+  sp = lapply(sp, function(x) x[!is.na(x)])
+  for(y in 1:length(sp[[i]])) {
+    pc[[i]][y] = max(c(dis.p.200*(pd.p.200*pc[[i-1]][y] + pu.p.200*pc[[i-1]][y+1]), 
+                       k - sp[[i]][y]))
+  }
+}
+pc[[201]]
+
+# US Call
+vc <- vector("list", 201)
+vc[[1]] <- v.c.final.200
+sp.c <- vector("list", 201)
+sp.c[[1]] <- s.final.c.200
+for(i in 2:201) {
+  for(j in 1:201) {
+    sp.c[[i]][j] = sp.c[[i-1]][j]*exp(deldc.200)
+  }
+  sp.c[[i]] = sp.c[[i]][-1]
+  sp.c = lapply(sp.c, function(x) x[!is.na(x)])
+  for(y in 1:length(sp.c[[i]])) {
+    vc[[i]][y] = max(c(dis.c.200*(pd.c.200*vc[[i-1]][y] + pu.c.200*vc[[i-1]][y+1]), 
+                       sp.c[[i]][y] - k))
+  }
+}
+vc[[201]]
+```
+So we have the value for Put option is about 6.616 USD and for Call option is 9.125 USD.
+
+## Question 2.3
+## \textcolor{red}{Solution:}
+
+```{r}
+# Using explicit finite different method to compute for trinomial tree
+# Computing probabilities of up, down, middle movement
+delx = 0.025
+pu = 0.5*delt*((sig/delx)^2 + mt.v/delx)
+pm = 1 - delt*(sig/delx)^2 -r*delt
+pd = 0.5*delt*((sig/delx)^2 - mt.v/delx)
+
+edx=exp(delx)
+
+# Value of assets and options at the final time for each strike price
+sfin.n=s0*exp(-200*delx)
+sfin.a <- c()
+pfin <- c()
+cfin <- c()
+for(i in 2:401) {
+  sfin.a[1] = sfin.n
+  sfin.a[i] = sfin.a[i-1]*edx
+  pfin[1] = max(c(0, k-sfin.a[1]))
+  pfin[i] = max(c(0, k-sfin.a[i]))
+  cfin[1] = max(c(0, sfin.a[1]-k))
+  cfin[i] = max(c(0, sfin.a[i]-k))
+}
+
+# Value of call and put options
+s.all <- vector("list", 201)
+s.all[[1]] <- sfin.a
+p.all.us <- vector("list", 201)
+p.all.us[[1]] <- pfin
+c.all.us <- vector("list", 201)
+c.all.us[[1]] <- cfin
+for(i in 2:201) {
+  s.all[[i]] = s.all[[i-1]][-c(1, length(s.all[[i-1]]))]
+  for(j in 2:(length(s.all[[i-1]])-1) ) {
+    p.all.us[[i]][j] = max(c(k-s.all[[i]][j-1], pd*p.all.us[[i-1]][j-1] + 
+                               pm*p.all.us[[i-1]][j] + pu*p.all.us[[i-1]][j+1]))
+    p.all.us = lapply(p.all.us, function(x) x[!is.na(x)])
+    c.all.us[[i]][j] = max(c(s.all[[i]][j-1] - k, pd*c.all.us[[i-1]][j-1] + 
+                               pm*c.all.us[[i-1]][j] + pu*c.all.us[[i-1]][j+1]))
+    c.all.us = lapply(c.all.us, function(x) x[!is.na(x)])
+  }
+}
+p.all.us[[201]]
+c.all.us[[201]]
+```
+We obtain a simillar result when using binomial tree model. In here, we have value of Put option is 6.611 USD and for Call option is 9.127 USD
+

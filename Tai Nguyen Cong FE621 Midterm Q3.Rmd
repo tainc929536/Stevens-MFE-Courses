@@ -1,0 +1,80 @@
+---
+output: pdf_document
+
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(warning=FALSE, message=FALSE)
+```
+
+# FE 621
+
+## `r format(Sys.time(), "%Y-%m-%d")`
+
+Name: Tai Nguyen Cong
+
+# Question 3
+
+## Question 3.4
+Importing data
+```{r}
+s0 = 100
+k = 100
+t = 1
+N = 20
+r = 0.06
+min.sp = 0
+```
+
+## \textcolor{red}{Solution:} 
+For this problem, I use 20 steps for calculation. I assume that at maturity the stock price may reach 0, and it is the minimum value of stock price (x) as was explained above. I set interest rate to be 0.06
+```{r}
+# Writing function for explicit scheme as were presented above
+library(pracma)
+explicitFDM.EP.MT <- function(s0, min.sp, k, t, r, N) {
+  delt = t/N
+  del.s = (s0 - min.sp)/N
+  s.fin.all = matrix(nrow = N+1, ncol = 2*N+1)
+  s.fin.all[1, ] = s0 + del.s*seq(-N, N, 1)
+  temp <- c()
+  for(i in 2:(N+1)) {
+    temp = s.fin.all[(i-1), ][-c(1:(i-1), (length(s.fin.all[(i-1), ])-i+2):
+                                   length(s.fin.all[(i-1), ]) ) ]
+    s.fin.all[i, ] = c(rep(NA, i-1 ), temp, rep(NA, i-1 ) )
+  }
+  if(min.sp == 0 & (mod(N,11)==0) ) {
+    s.fin.all[1,1] = 0
+  }
+  
+  pu = matrix(nrow = N+1, ncol = 2*N+1)
+  pm = matrix(nrow = N+1, ncol = 2*N+1)
+  pd = matrix(nrow = N+1, ncol = 2*N+1)
+  pu[1, ] = rep(1, (2*N+1))
+  pm[1, ] = rep(1, (2*N+1))
+  pd[1, ] = rep(1, (2*N+1))
+  for(i in 2:(N+1)) {
+    for(j in 1:(2*N+1)) {
+      pu[i,j] = delt*sin(s.fin.all[i-1,j]*pi/180)/del.s +
+        (0.2*delt*(s.fin.all[i-1,j]^1.5))/(del.s^2)
+      pm[i,j] = 1 - (0.4*delt*(s.fin.all[i-1,j]^1.5))/(del.s^2) - r*delt
+      pd[i,j] = -delt*sin(s.fin.all[i-1,j]*pi/180)/del.s + 
+        (0.2*delt*(s.fin.all[i-1,j]^1.5))/(del.s^2)
+    }
+  }
+
+  putv.mat = matrix(nrow = N+1, ncol = 2*N+1)
+  for(i in 1:length(s.fin.all[1, ])) {
+    putv.mat[1,i] = max(0, k - s.fin.all[1,i])
+  }
+  for(i in 2:(N+1)) {
+    for(j in 2:(2*N)) {
+      putv.mat[i,j] = pu[i,j+1]*putv.mat[i-1,j+1] + pm[i,j]*putv.mat[i-1,j] + 
+        pd[i,j-1]*putv.mat[i-1,j-1]
+    }
+  }
+  return(putv.mat[N+1,ceiling(N+0.5)])
+}
+
+explicitFDM.EP.MT(s0, min.sp, k, t, r, 20)
+```
+So the value of put option is 4.46 USD
