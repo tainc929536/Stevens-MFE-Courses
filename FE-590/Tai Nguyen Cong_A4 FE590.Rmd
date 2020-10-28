@@ -1,0 +1,371 @@
+---
+output: pdf_document
+---
+
+# FE590.  Assignment #4.
+
+
+## Enter Your Name Here, or "Anonymous" if you want to remain anonymous..
+## `r format(Sys.time(), "%Y-%m-%d")`
+I pledge on my honor that I have not given or received any unauthorized assistance on this assignment/examination. I further pledge that I have not copied any material from a book, article, the Internet or any other source except where I have expressly cited the source.
+
+By filling out the following fields, you are signing this pledge. No assignment will get credit without being pledged.
+
+Name: Tai Nguyen Cong
+
+CWID: 10442353
+
+Date: 05/05/2019
+
+# Instructions
+
+
+When you have completed the assignment, knit the document into a PDF file, and upload _both_ the .pdf and .Rmd files to Canvas.
+
+Note that you must have LaTeX installed in order to knit the equations below. If you do not have it installed, simply delete the questions below.
+```{r}
+CWID = 10442353
+personal = CWID %% 10000
+set.seed(personal)
+```
+# Question 1:
+In this assignment, you will be required to find a set of data to run regression on. This data set should be financial in nature, and of a type that will work with the models we have discussed this semester (hint: we didn't look at time series). You may not use any of the data sets in the ISLR package that we have been looking at all semester.  Your data set that you choose should have both qualitative and quantitative variables. (or has variables that you can transform)
+
+Provide a description of the data below, where you obtained it, what the variable names are and what it is describing.
+\newline 
+\newline Data source and descriptions of the dataset: https://turi.com/learn/gallery/notebooks/predict-loan-default.html
+\newline Link to download data: https://static.turi.com/datasets/lending_club/loanStats.csv
+\newline
+\newline The whole data named "loanStats" has the size of 257 Mb, with roughly almost 500,000 observations of 68 variables. However many of them are meaningless, and some of them have no description, so I can remove them.
+\newline
+\newline For this assignment, to get an appropriate dataset, I first take the subset of first 5000 observations from the whole dataset, then I removed unnecessary variables like id, member_id, empt_title, url and so on. Then I remove unexplained variables like initial_list_status, revol_bal. I also removed variables that have identical values for all observations. Next I check all quantitative variables to see if there are any blank or NA values in observations of such variables, then I remove such observations. I then convert observations in the term variable and emp_length_num variable to pure numeric, by removing units like months or years. I also change 1 qualitative variable into binary variables, which is_inc_v. Also, there are a number of variables that have the same information but are displayed in different forms, for example like delinq_2yrs represents number of deliquincies in last 2 years and delinq_2yrs_none define whether someone has deliquincy in the last 2 years, and so on. Therefore, I remove such variables have same information and keep only quantitaitve variables contain necessary information. I get a dataset of 19 variables with 4822 observations.
+\newline
+\newline Variables of the dataset are:
+\newline            'grade',                     # grade of the loan (categorical)
+\newline            'sub_grade_num',             # sub-grade of the loan as a number from 0 to 1
+\newline            'short_emp',                 # one year or less of employment
+\newline            'emp_length_num',            # number of years of employment
+\newline            'home_ownership',            # home_ownership status: own, mortgage or rent
+\newline            'dti',                       # debt to income ratio
+\newline            'payment_inc_ratio',         # ratio of the monthly payment to income
+\newline            'delinq_2yrs',               # number of delinquincies in the last 2 years
+\newline            'inq_last_6mths',            # number of creditor inquiries in last 6 months
+\newline            'last_delinq_none',          # has borrower had a delinquincy
+\newline            'open_acc',                  # number of open credit accounts
+\newline            'pub_rec',                   # number of derogatory public records
+\newline            'revol_util',                # percent of available credit being used
+\newline	          'is_inc_v'			             # Is income verified: Verified/Source verified = 1, Not verified = 0
+\newline	          'term'			                 # Term of loans (in months)
+\newline
+\newline For "home_ownership" variable, I create 2 binary variables, which are "rent house" and "mortgage". These variables mean that if "rent house" = 1 then that borrower "rent house" = 0 elsewhere, if "mortgage" = 1 then that borrower has a mortgage house = 0 elsewhere, and if both "rent house" and "mortgage" are 0 then the borrower owns a house. Finally, I have 21 variables
+\newline
+\newline I store all in the file named "FE590 fdata" and load it into working environment.
+\newline I will split the data into 2 equal parts, part 1 for training data, the rest is used for test data.
+
+
+
+# Question 2:
+Pick a quantitative variable and fit at least four different models in order to predict that variable using the other predictors.  Determine which of the models is the best fit.  You will need to provide strong reasons as to why the particular model you chose is the best one.  You will need to confirm the model you have selected provides the best fit and that you have obtained the best version of that particular model (i.e. subset selection or validation for example). You need to convince the grader that you have chosen the best model.
+\newline
+\newline For this problem, I want to find which variables have impacts, and how important those variables are on the interest rate that each borrower has to pay, using other variables as predictors.
+```{r}
+# Creating training and test dataset
+library(readxl)
+setwd("C:/Users/Dell/Downloads/Rstudio")
+fe590.data <- read_excel("FE590 fdata.xlsx")
+{set.seed(personal)
+  train <- sample(length(fe590.data$loan_amnt), length(fe590.data$loan_amnt)/2, F) }
+train.fe <- fe590.data[train, ]
+test.fe <- fe590.data[-train, ]
+```
+
+
+##(a) Forward subset selection for linear regression
+```{r}
+# Forward subset selection for linear regression
+library(ISLR)
+library(leaps)
+reg.sub.f=regsubsets(train.fe$int_rate~., data = train.fe[,-c(4,17)], nvmax = 18, 
+                     method = "forward")
+reg.sub.sum <- summary(reg.sub.f)
+plot(reg.sub.sum$cp, type = "l")
+plot(reg.sub.sum$adjr2, type = "l")
+which.min(reg.sub.sum$cp)
+which.max(reg.sub.sum$adjr2)
+reg.sub.sum$cp
+reg.sub.sum$adjr2
+# We can see that for Cp values using different numbers of predictors, using 9 
+# predictors produces the best result and significantly lower than other models,
+# while there is a minor increase in adjusted r squared if we use 10 predictors
+# instead of 9, so we are suppose to choose 9 predictors. However, after testing
+# choosing 10 predictors produces a better result on test set than 9 predictors,
+# so we choose 10 predictors.
+
+# 10 predictors (not including the intercept)
+names(coef(reg.sub.f, id = 10))
+lm.sub <- lm(int_rate ~ term + annual_inc + is_inc_v + inq_last_6mths + revol_util + 
+            pub_rec + last_delinq_none + grade_num + sub_grade_num + rent_house, 
+            data = train.fe[,-c(4,17)])
+summary(lm.sub)
+sub.lm.t <- predict(lm.sub, test.fe)
+lm.mse=mean((test.fe$int_rate-sub.lm.t)^2)
+mean((test.fe$int_rate-sub.lm.t)^2)
+```
+MSE for using forward subset selection for linear regression of testset is 0.3831, we will store this value to compare with other models.
+
+
+##(b) GAM
+```{r}
+# GAM
+library(gam)
+# https://stackoverflow.com/questions/26558631/predict-lm-in-a-loop-warning-prediction-from-a-rank-deficient-fit-may-be-mis
+names(coef(reg.sub.f, id = 6)) #(choose)
+gam1 <- gam(int_rate ~  ns(annual_inc, 3) + inq_last_6mths + ns(revol_util, 3) + 
+            last_delinq_none + ns(grade_num, 3) + ns(sub_grade_num, 3), 
+            data = train.fe[,-c(4,17)])
+summary(gam1)
+gam1.pred <- predict(gam1, test.fe)
+mean((test.fe$int_rate-gam1.pred)^2)
+# 0.04408933
+
+names(coef(reg.sub.f, id = 9)) #(choose)
+gam4 <- gam(int_rate ~ ns(term, 3) + ns(annual_inc, 3) + inq_last_6mths + 
+            ns(revol_util, 3) + last_delinq_none + ns(grade_num, 3) + 
+              ns(sub_grade_num, 3) + rent_house, data = train.fe[,-c(4,17)])
+gam4.pred <- predict(gam4, test.fe)
+summary(gam4)
+mean((test.fe$int_rate-gam4.pred)^2)
+#0.04408289
+
+RSS.gam1 <- sum((gam1.pred- test.fe$int_rate)^2)
+TSS.gam1 <- sum((mean(test.fe$int_rate) - test.fe$int_rate)^2)
+1-(RSS.gam1/(2411-7-1))/(TSS.gam1/(2411-1))
+
+RSS.gam2 <- sum((gam4.pred- test.fe$int_rate)^2)
+TSS.gam2 <- sum((mean(test.fe$int_rate) - test.fe$int_rate)^2)
+1-(RSS.gam2/(2411-7-1))/(TSS.gam2/(2411-1))
+```
+In this part, I tried the best model selection for certain number of predictors since only at choosing 6 predictors or less then the program won't cause the warning of the rank of data matrix is smaller than the number of parameters I need to fit. All number of predictors greater than 6 cause the warning, and hence may affect the accuracy of the prediction.
+\newline Compares all different models with different number of predictors, choosing 9 predictors cause the lowest MSE but may not be accurate and is not really so different, compares to using 6 predictors (in term of MSE in test dataset) (about 0.0441). Either way, the MSE is significantly smaller, compares to forward subset selection for linear regression. Using adjusted R squared, there are no different between 2 models. So using GAM with 3 degrees of freedom with either 6 or 9 variables is the best solution so far.
+
+
+##(c) Regression Tree
+```{r}
+# Regression tree
+library(tree)
+tree.quant.fe590=tree(int_rate~., train.fe[,-c(4,17)])
+summary(tree.quant.fe590)
+plot(tree.quant.fe590)
+text(tree.quant.fe590,pretty=0)
+yhat = predict(tree.quant.fe590,newdata = test.fe)
+mean((yhat - test.fe$int_rate)^2)
+# Pruning tree
+set.seed(personal)
+cv.quant.fe590=cv.tree(tree.quant.fe590)
+cv.quant.fe590$size[which.min(cv.quant.fe590$dev)]
+best.prune.quant=prune.tree(tree.quant.fe590, best = 7)
+plot(best.prune.quant)
+text(best.prune.quant,pretty=0)
+y.prune = predict(best.prune.quant, newdata = test.fe)
+mean((y.prune - test.fe$int_rate)^2)
+```
+Whether using pruning tree or not, the MSE using regression tree on test data is as the same, which is 0.4761, higher than both 2 previous methods.
+
+
+##(d) Boosting
+```{r}
+# Boosting
+library(gbm)
+lambda <- 10^seq(-2, -0.1, by = 0.05)
+test.err <- c()
+for(i in 1:length(lambda)) {
+  set.seed(personal)
+  boost.fe590=gbm(int_rate~., data=train.fe[,-c(4,17)], distribution="gaussian", 
+                  n.trees=1000, shrinkage = lambda[i])
+  y.hat.boost=predict(boost.fe590 ,newdata=test.fe[,-c(4,17)], n.trees=1000)
+  test.err[i] <- mean((y.hat.boost - test.fe$int_rate)^2)
+}
+test.err
+which.min(test.err)
+test.err[12]
+lambda[12]
+```
+Using Boosting method with different values for shrinkage parameter, we have choose the best $\lambda$ = 0.0355, and coressponding to it is the best boosting model, which produce the MSE on the test dataset is 0.0406, lowest among all methods, so this should be our best model.
+
+
+
+#Question 3:
+
+Do the same approach as in question 2, but this time for a qualitative variable.
+\newline
+\newline For this part, I use is_inc_v (is incomce verified) as my response variable.
+\newline Summarize number of "Yes"(1) and "No" (0) in the is_inc_v variable
+```{r}
+m <-matrix(c(length(which(test.fe$is_inc_v==0)), 
+             length(which(test.fe$is_inc_v==1))), ncol = 2)
+colnames(m) <- c("No (0)", "Yes (1)")
+m
+```
+
+
+##(a) KNN
+```{r}
+# KNN
+library(class)
+knn.pred.ith <- vector("list")
+res.knn.ith <- vector("list", 50)
+num.right.ith <- c()
+for(i in 1:50) {
+  set.seed(personal)
+  knn.pred.ith[[i]] <- knn(train.fe[,-c(4,17)], test.fe[,-c(4,17)], 
+                           train.fe$is_inc_v, k = i)
+  for(j in 1:length(train.fe$is_inc_v)) {
+    if(knn.pred.ith[[i]][j] == train.fe$is_inc_v[j]) {
+      res.knn.ith[[i]][j] <- c(T)
+    }
+    else {
+      res.knn.ith[[i]][j] <- c(F)
+    }
+  }
+  num.right.ith[i]=length(which(res.knn.ith[[i]]==T))
+}
+num.right.ith 
+
+which.max(num.right.ith)
+num.right.ith[48]/2411
+length(which(knn.pred.ith[[48]]==1))
+```
+Using KNN method, we have the percentage of accuracy prediction on testset is roughly 64%. Also this method seems to put too much number of observation into group 1, so it may be not really good in predicting group 0.
+
+
+##(b) Support Vector Classification
+```{r}
+# Support Vector Classification
+# I tried using SVM (polynomial and radial), however the size of observations are too
+# large so it would take a lot of time for my computer to implement such methods
+# (i.e computational infeasible)
+library(e1071)
+set.seed(personal)
+svmfit.l=tune(svm, as.factor(is_inc_v)~., data=train.fe[,-c(4,17)], kernel = "linear",
+            ranges=list(cost=c(0.001, 0.01, 0.1, 1,5 ,10, 100) ))
+summary(svmfit.l)
+best.mod.l=svmfit.l$best.model
+incv.pred.l=predict(best.mod.l, test.fe[,-c(4, 17)])
+table(incv.pred.l, test.fe$is_inc_v)
+# the accuracy percentage in prediction is:
+(277+1425)/2411
+```
+Using Support Vector Classification method, we have the percentage of accuracy prediction on testset is about 70.5%, higher than KNN method.
+
+
+##(c) LDA
+```{r}
+# LDA
+library(MASS)
+lda.fit <- lda(is_inc_v ~., data = train.fe[, -c(4,17)])
+lda.fit
+lda.pred <- predict(lda.fit, test.fe)
+table(lda.pred$class, test.fe$is_inc_v)
+# Accuracy percentage
+(290+1426)/2411
+```
+Using LDA method, I have the percentage of accuracy prediction on testset is about 71.17%, higher than Support Vector Classification method. LDA also outperform Support Vector Classification method in both predicting for group 1 and especially for group 0.
+
+
+##(d) Logistics Regression
+```{r}
+# Logistics
+library(MASS)
+glm.1 = glm(is_inc_v ~., data=train.fe[,-c(4,17)], family=binomial)
+summary(glm.1)
+glm.2 = glm(is_inc_v ~ loan_amnt + annual_inc + short_emp, data=train.fe, 
+            family=binomial)
+summary(glm.2)
+# Although all of coefficients of glm.2 are statistically significant, we still
+# choose glm.1 as it has a higher adjusted r squared and may be better in prediction
+# as it contains more vairables that might be helpful in prediction.
+
+glm.t = predict(glm.1, test.fe[,-c(4,17)], type = "response")
+glm.pred=rep("0", length(glm.t))
+glm.pred[glm.t>.4]="1" 
+table(glm.pred, test.fe$is_inc_v)
+# the accuracy percentage in prediction is:
+(169+1560)/2411
+```
+For this problem, I tried different values for what the glm.t probability should be used to decided whether the income was verified or not, and the best value is 0.4. For this value of probability, the accuracy percentage of prediction is about 71.71%, slightly better than LDA method and is the highest among all method. However, it seems that Logistics method seems to assign more observations to group 1 (Yes), and less to group 0 (No), which means it may be good for predicting whose income is verified, rather than whose is not. Also, because I choose the best value for probability of deciding which group that the observation should be placed in so the model would have the highest accuracy prediction rate. So although Logistics method produces the highest accuracy prediction rate, in my opinion, LDA is the best model for prediction.
+
+
+#Question 4:
+
+(Based on ISLR Chapter 9 #7) In this problem, you will use support vector approaches in order to predict whether a given car gets high or low gas mileage based on the Auto data set.
+
+##(a)
+Create a binary variable that takes on a 1 for cars with gas mileage above the median, and a 0 for cars with gas mileage below the median.
+```{r}
+library(e1071)
+library(ISLR)
+attach(Auto)
+gas.med=ifelse(Auto$mpg > median(Auto$mpg), 1, 0)
+Auto$gashigh=gas.med
+```
+
+##(b)
+Fit a support vector classifier to the data with various values of cost, in order to predict whether a car gets high or low gas mileage. Report the cross-validation errors associated with different values of this parameter. Comment on your results.
+```{r}
+set.seed(personal)
+svmfit=tune(svm, as.factor(gashigh)~., data=Auto, kernel = "linear",
+            ranges=list(cost=c(0.001, 0.01, 0.1, 1,5, 10, 100) ))
+summary(svmfit)
+```
+As we increase the value of costs, the errors rate sharply decrease, and reach its minimum value of about 0.015 when the value of cost equals 1, then the errors seems to increase as we increase values of costs.
+
+##(c)
+Now repeat for (b), this time using SVMs with radial and polynomial basis kernels, with different values of gamma and degree and cost. Comment on your results.
+```{r}
+# Polynomial
+set.seed(personal)
+svmfit.p=tune(svm, as.factor(gashigh)~., data=Auto, kernel = "polynomial",
+            ranges=list(cost=c(0.001, 0.01, 0.1, 1, 5, 10, 100, 1000), 
+                        degree = c(2, 3, 4) ))
+summary(svmfit.p)
+
+# Radial
+set.seed(personal)
+svmfit.r=tune(svm, as.factor(gashigh)~., data=Auto, kernel = "radial",
+              ranges=list(cost=c(0.001, 0.01, 0.1, 1, 5, 10, 100), 
+                          gamma=c(0.5, 1, 2, 3, 4) ))
+summary(svmfit.r)
+```
+For using polynomial basis kernels, as we slowly increase the values of costs, keeping the degree levels fixed then the error seems to stand still. However at the value of cost equals 1000 then all model using different values of degree reach the minimum value of error, and we have the lowest values at degree 2.
+\newline For using radial basis kernels, as we increase the values of cost, keeping gamma fixed then the errors all seems to decrease, and the minimum value for error is at cost equals 1 and gamma equals 0.5
+
+##(d)
+Make some plots to back up your assertions in (b) and (c). Hint: In the lab, we used the plot() function for svm objects only in cases with p=2 When p>2, you can use the plot() function to create plots displaying pairs of variables at a time. Essentially, instead of typing plot(svmfit , dat) where svmfit contains your fitted model and dat is a data frame containing your data, you can type plot(svmfit , dat, x1~x4) in order to plot just the first and fourth variables. However, you must replace x1 and x4 with the correct variable names. To find out more, type ?plot.svm.
+
+```{r}
+# Linear
+svmfit.linear=svm(as.factor(gashigh)~., data=Auto, kernel = "linear", cost=1)
+plot(svmfit.linear, Auto, mpg ~ acceleration, main = "Linear: mpg~acceleration")
+plot(svmfit.linear, Auto, mpg ~ displacement, main = "Linear: mpg~displacement")
+plot(svmfit.linear, Auto, mpg ~ horsepower, main = "Linear: mpg~horsepower")
+plot(svmfit.linear, Auto, mpg ~ weight, main = "Linear: mpg~weight")
+
+# Radial
+svmfit.radial=svm(as.factor(gashigh)~., data=Auto, kernel = "radial", 
+                  cost = 1, gamma = 0.5)
+plot(svmfit.radial, Auto, mpg ~ acceleration, main = "Radial: mpg~acceleration")
+plot(svmfit.radial, Auto, mpg ~ displacement, main = "Radial: mpg~displacement")
+plot(svmfit.radial, Auto, mpg ~ horsepower, main = "Radial: mpg~horsepower")
+plot(svmfit.radial, Auto, mpg ~ weight, main = "Radial: mpg~weight")
+
+# Polynomial
+svmfit.polynomial=svm(as.factor(gashigh)~., data=Auto, kernel = "polynomial", 
+                      cost = 1000, degree = 2)
+plot(svmfit.polynomial, Auto, mpg ~ acceleration, main = "Radial: mpg~acceleration")
+plot(svmfit.polynomial, Auto, mpg ~ displacement, main = "Radial: mpg~displacement")
+plot(svmfit.polynomial, Auto, mpg ~ horsepower, main = "Radial: mpg~horsepower")
+plot(svmfit.polynomial, Auto, mpg ~ weight, main = "Radial: mpg~weight")
+```
+
+
+
